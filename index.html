@@ -7,7 +7,13 @@
     <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: transparent;
+        }
+    </style>
 </head>
 <body>
     <div id="root"></div>
@@ -17,11 +23,20 @@
 
         function RuneScapeTickCounter() {
             const [currentTick, setCurrentTick] = useState(1);
+            const [maxTicks, setMaxTicks] = useState(10);
             const [isRunning, setIsRunning] = useState(true);
+            const [position, setPosition] = useState({ x: 8, y: 8 });
+            const [isDragging, setIsDragging] = useState(false);
+            const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
             
             const incrementTick = useCallback(() => {
-                setCurrentTick(prev => prev >= 10 ? 1 : prev + 1);
-            }, []);
+                setCurrentTick(prev => prev >= maxTicks ? 1 : prev + 1);
+            }, [maxTicks]);
+
+            // Reset when max changes
+            useEffect(() => {
+                setCurrentTick(1);
+            }, [maxTicks]);
 
             // Auto-increment when running with random timing
             useEffect(() => {
@@ -48,13 +63,112 @@
                 };
             }, [isRunning, incrementTick]);
 
+            // Handle dragging
+            const handleMouseDown = (e) => {
+                setIsDragging(true);
+                setDragStart({
+                    x: e.clientX - position.x,
+                    y: e.clientY - position.y
+                });
+                e.preventDefault();
+            };
+
+            const handleMouseMove = useCallback((e) => {
+                if (!isDragging) return;
+                
+                setPosition({
+                    x: e.clientX - dragStart.x,
+                    y: e.clientY - dragStart.y
+                });
+            }, [isDragging, dragStart]);
+
+            const handleMouseUp = () => {
+                setIsDragging(false);
+            };
+
+            // Add global mouse event listeners
+            useEffect(() => {
+                if (isDragging) {
+                    window.addEventListener('mousemove', handleMouseMove);
+                    window.addEventListener('mouseup', handleMouseUp);
+                    return () => {
+                        window.removeEventListener('mousemove', handleMouseMove);
+                        window.removeEventListener('mouseup', handleMouseUp);
+                    };
+                }
+            }, [isDragging, handleMouseMove]);
+
             return React.createElement('div', {
-                className: "fixed top-2 left-2 z-50"
-            }, React.createElement('div', {
-                className: "bg-gray-900 rounded border border-gray-700 w-12 h-12 flex items-center justify-center"
-            }, React.createElement('div', {
-                className: "text-lg font-bold text-white select-none"
-            }, currentTick)));
+                style: {
+                    position: 'fixed',
+                    top: position.y + 'px',
+                    left: position.x + 'px',
+                    zIndex: 9999,
+                    cursor: isDragging ? 'grabbing' : 'grab'
+                },
+                onMouseDown: handleMouseDown
+            }, [
+                // Max ticks selector
+                React.createElement('div', {
+                    key: 'selector',
+                    style: {
+                        backgroundColor: '#374151',
+                        border: '1px solid #6b7280',
+                        borderRadius: '4px',
+                        width: '48px',
+                        height: '24px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        marginBottom: '4px'
+                    }
+                }, React.createElement('select', {
+                    value: maxTicks,
+                    onChange: (e) => setMaxTicks(parseInt(e.target.value)),
+                    style: {
+                        backgroundColor: 'transparent',
+                        color: 'white',
+                        border: 'none',
+                        fontSize: '12px',
+                        width: '100%',
+                        textAlign: 'center',
+                        outline: 'none',
+                        cursor: 'pointer'
+                    },
+                    onClick: (e) => e.stopPropagation()
+                }, Array.from({length: 10}, (_, i) => i + 1).map(num => 
+                    React.createElement('option', {
+                        key: num,
+                        value: num,
+                        style: {
+                            backgroundColor: '#374151',
+                            color: 'white'
+                        }
+                    }, num)
+                ))),
+                
+                // Main counter
+                React.createElement('div', {
+                    key: 'counter',
+                    style: {
+                        backgroundColor: '#1f2937',
+                        border: '1px solid #4b5563',
+                        borderRadius: '4px',
+                        width: '48px',
+                        height: '48px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center'
+                    }
+                }, React.createElement('div', {
+                    style: {
+                        fontSize: '18px',
+                        fontWeight: 'bold',
+                        color: 'white',
+                        userSelect: 'none'
+                    }
+                }, currentTick))
+            ]);
         }
 
         ReactDOM.render(React.createElement(RuneScapeTickCounter), document.getElementById('root'));
