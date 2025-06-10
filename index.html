@@ -124,7 +124,11 @@
                     }
                 }, React.createElement('select', {
                     value: maxTicks,
-                    onChange: (e) => setMaxTicks(parseInt(e.target.value)),
+                    onChange: (e) => {
+                        e.stopPropagation();
+                        setMaxTicks(parseInt(e.target.value));
+                    },
+                    onMouseDown: (e) => e.stopPropagation(),
                     style: {
                         backgroundColor: 'transparent',
                         color: 'white',
@@ -134,8 +138,7 @@
                         textAlign: 'center',
                         outline: 'none',
                         cursor: 'pointer'
-                    },
-                    onClick: (e) => e.stopPropagation()
+                    }
                 }, Array.from({length: 10}, (_, i) => i + 1).map(num => 
                     React.createElement('option', {
                         key: num,
