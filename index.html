@@ -2,16 +2,35 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>RuneScape Tick Counter</title>
     <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <style>
-        body {
+        * {
             margin: 0;
             padding: 0;
+            box-sizing: border-box;
+        }
+        
+        html, body {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
             background: transparent;
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+        }
+        
+        #root {
+            width: 100%;
+            height: 100%;
+            position: relative;
         }
     </style>
 </head>
@@ -63,50 +82,68 @@
                 };
             }, [isRunning, incrementTick]);
 
-            // Handle dragging
-            const handleMouseDown = (e) => {
+            // Handle dragging with touch support
+            const handleStart = (e) => {
+                const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+                const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+                
                 setIsDragging(true);
                 setDragStart({
-                    x: e.clientX - position.x,
-                    y: e.clientY - position.y
+                    x: clientX - position.x,
+                    y: clientY - position.y
                 });
                 e.preventDefault();
             };
 
-            const handleMouseMove = useCallback((e) => {
+            const handleMove = useCallback((e) => {
                 if (!isDragging) return;
                 
+                const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+                const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+                
                 setPosition({
-                    x: e.clientX - dragStart.x,
-                    y: e.clientY - dragStart.y
+                    x: clientX - dragStart.x,
+                    y: clientY - dragStart.y
                 });
+                e.preventDefault();
             }, [isDragging, dragStart]);
 
-            const handleMouseUp = () => {
+            const handleEnd = () => {
                 setIsDragging(false);
             };
 
-            // Add global mouse event listeners
+            // Add global event listeners for both mouse and touch
             useEffect(() => {
                 if (isDragging) {
-                    window.addEventListener('mousemove', handleMouseMove);
-                    window.addEventListener('mouseup', handleMouseUp);
+                    const events = {
+                        mousemove: handleMove,
+                        mouseup: handleEnd,
+                        touchmove: handleMove,
+                        touchend: handleEnd
+                    };
+                    
+                    Object.entries(events).forEach(([event, handler]) => {
+                        window.addEventListener(event, handler, { passive: false });
+                    });
+                    
                     return () => {
-                        window.removeEventListener('mousemove', handleMouseMove);
-                        window.removeEventListener('mouseup', handleMouseUp);
+                        Object.entries(events).forEach(([event, handler]) => {
+                            window.removeEventListener(event, handler);
+                        });
                     };
                 }
-            }, [isDragging, handleMouseMove]);
+            }, [isDragging, handleMove]);
 
             return React.createElement('div', {
                 style: {
-                    position: 'fixed',
+                    position: 'absolute',
                     top: position.y + 'px',
                     left: position.x + 'px',
-                    zIndex: 9999,
-                    cursor: isDragging ? 'grabbing' : 'grab'
+                    cursor: isDragging ? 'grabbing' : 'grab',
+                    touchAction: 'none'
                 },
-                onMouseDown: handleMouseDown
+                onMouseDown: handleStart,
+                onTouchStart: handleStart
             }, [
                 // Max ticks selector
                 React.createElement('div', {
@@ -129,6 +166,7 @@
                         setMaxTicks(parseInt(e.target.value));
                     },
                     onMouseDown: (e) => e.stopPropagation(),
+                    onTouchStart: (e) => e.stopPropagation(),
                     style: {
                         backgroundColor: 'transparent',
                         color: 'white',
